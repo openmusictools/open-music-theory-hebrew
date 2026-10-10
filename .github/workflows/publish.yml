@@ -69,8 +69,10 @@ jobs:
           import os,re,subprocess
           tag=os.environ['RELEASE_TAG']
           if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?',tag): raise SystemExit('Invalid version tag')
-          result=subprocess.run(['gh','release','view',tag],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-          if result.returncode==0: raise SystemExit('Release exists; use a new version or leave the tag empty to publish only the website')
+          import json
+          releases=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GH_REPO']+'/releases?per_page=100']))
+          existing=next((r for r in releases if r['tag_name']==tag),None)
+          if existing and not existing['draft']: raise SystemExit('Published release exists; use a new version or leave the tag empty to publish only the website')
           PY
       - name: Export PDF and companion material
         if: env.RELEASE_TAG != ''
@@ -92,13 +94,30 @@ jobs:
           IS_BETA: ${{ inputs.prerelease }}
         run: |
           python - <<'PY'
-          import os,subprocess
+          import os,subprocess,json,hashlib
           from pathlib import Path
+          from publish import ASSETS,LABELS
           tag=os.environ['RELEASE_TAG']
-          args=['gh','release','create',tag,'--target',os.environ['GITHUB_SHA'],'--title','תאוריית המוזיקה הפתוחה — '+tag,'--notes-file','release-assets/release-notes.md']
+          releases=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GH_REPO']+'/releases?per_page=100']))
+          existing=next((r for r in releases if r['tag_name']==tag),None)
+          if existing and not existing['draft']:raise SystemExit('Refusing to change a published release')
+          args=['gh','release','create',tag,'--draft','--target',os.environ['GITHUB_SHA'],'--title','תאוריית המוזיקה הפתוחה — '+tag,'--notes-file','release-assets/release-notes.md']
           if os.environ['IS_BETA']=='true':args.append('--prerelease')
-          assets=[str(p) for p in sorted(Path('release-assets').iterdir()) if p.suffix in {'.zip','.pdf','.json'}]
-          subprocess.run(args+assets,check=True)
+          if not existing:subprocess.run(args,check=True)
+          labels={ASSETS[key]:label for key,label,_ in LABELS}
+          assets=[p for p in sorted(Path('release-assets').iterdir()) if p.suffix in {'.zip','.pdf','.json'}]
+          # Sequential uploads avoid gh create's concurrent upload cleanup race.
+          # Keep incomplete drafts so a retry can safely finish them.
+          for p in assets:
+              details=json.loads(subprocess.check_output(['gh','release','view',tag,'--json','assets']))
+              old=next((a for a in details['assets'] if a['name']==p.name),None)
+              if old:
+                  if old['size']!=p.stat().st_size:raise SystemExit('Existing draft asset differs; use a new tag')
+                  continue
+              subprocess.run(['gh','release','upload',tag,str(p)+'#'+labels.get(p.name,'מפתח קבצים וחתימות SHA256')],check=True)
+          details=json.loads(subprocess.check_output(['gh','release','view',tag,'--json','assets']))
+          if not all(name in {a['name'] for a in details['assets']} for name in ASSETS.values()):raise SystemExit('Incomplete download set')
+          subprocess.run(['gh','release','edit',tag,'--draft=false'],check=True)
           PY
       - name: Read the most recent complete release, including beta
         run: |
