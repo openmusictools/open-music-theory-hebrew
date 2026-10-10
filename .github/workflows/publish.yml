@@ -1,0 +1,136 @@
+name: Publish Hebrew book website and releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (leave empty to rebuild the website only)'
+        default: 'v0.1.0-beta.1'
+        required: false
+        type: string
+      source_ref:
+        description: 'Translation source branch or commit'
+        default: 'master'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark the release as beta'
+        default: true
+        type: boolean
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  schedule:
+    - cron: '43 3 * * *'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: book-publishing
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || '' }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout translation source
+        uses: actions/checkout@v4
+        with:
+          repository: open-music-theory-he/open-music-theory-hebrew
+          ref: ${{ inputs.source_ref || 'master' }}
+          path: source
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install publishing tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libpango-1.0-0 libpangoft2-1.0-0 fonts-noto-core fonts-dejavu-core
+          python -m pip install -r source/scripts/requirements-export.txt -r source/scripts/requirements-audiobook.txt
+      - name: Reject an existing or invalid release tag
+        if: env.RELEASE_TAG != ''
+        run: |
+          python - <<'PY'
+          import os,re,subprocess
+          tag=os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.]+)?',tag): raise SystemExit('Invalid version tag')
+          result=subprocess.run(['gh','release','view',tag],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          if result.returncode==0: raise SystemExit('Release exists; use a new version or leave the tag empty to publish only the website')
+          PY
+      - name: Export PDF and companion material
+        if: env.RELEASE_TAG != ''
+        run: python source/scripts/export_book.py
+      - name: Snapshot saved audio without changing its branch
+        if: env.RELEASE_TAG != ''
+        run: |
+          git -C source fetch origin audiobook-data
+          git -C source worktree add --detach dist/audiobook-state FETCH_HEAD
+      - name: Export existing narration without synthesis
+        if: env.RELEASE_TAG != ''
+        run: python source/scripts/export_audiobook.py --tags-only
+      - name: Build and validate six download packages
+        if: env.RELEASE_TAG != ''
+        run: python publish.py packages --source source --tag "$RELEASE_TAG"
+      - name: Publish the release with all downloads
+        if: env.RELEASE_TAG != ''
+        env:
+          IS_BETA: ${{ inputs.prerelease }}
+        run: |
+          python - <<'PY'
+          import os,subprocess
+          from pathlib import Path
+          tag=os.environ['RELEASE_TAG']
+          args=['gh','release','create',tag,'--target',os.environ['GITHUB_SHA'],'--title','תאוריית המוזיקה הפתוחה — '+tag,'--notes-file','release-assets/release-notes.md']
+          if os.environ['IS_BETA']=='true':args.append('--prerelease')
+          assets=[str(p) for p in sorted(Path('release-assets').iterdir()) if p.suffix in {'.zip','.pdf','.json'}]
+          subprocess.run(args+assets,check=True)
+          PY
+      - name: Read the most recent complete release, including beta
+        run: |
+          gh api "repos/$GH_REPO/releases?per_page=30" > releases.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from publish import ASSETS
+          releases=json.loads(Path('releases.json').read_text())
+          latest=next((r for r in releases if not r['draft'] and all(n in {a['name'] for a in r['assets']} for n in ASSETS.values())),{})
+          Path('release.json').write_text(json.dumps(latest,ensure_ascii=False))
+          PY
+      - name: Build and validate the Hebrew reading website
+        run: python publish.py site --source source --release release.json
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload the reading website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+      - name: Summarize publication
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          report=json.loads(Path('_site/build-report.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write(f'Hebrew reader published: {report["chapters"]} content chapters, {report["pages"]} reading/documentation pages. All local links checked.\n\n')
+              if Path('release-assets/release-manifest.json').exists():
+                  m=json.loads(Path('release-assets/release-manifest.json').read_text())
+                  f.write(f'Release: {m["tag"]}; six downloads; {m["complete_audio_chapters"]}/{m["eligible_audio_chapters"]} completed audio chapters; synthesis requests: 0.\n')
+          PY
