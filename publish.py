@@ -8,9 +8,9 @@ from bs4 import BeautifulSoup
 
 REPO = 'openmusictools/open-music-theory-hebrew'
 SOURCE_REPO = 'open-music-theory-he/open-music-theory-hebrew'
-ASSETS = {'pdf':'תאוריית-המוזיקה-הפתוחה.pdf', 'pdf-annexes':'ספר-ונספחים.zip',
-          'audio':'ספר-שמע.zip', 'audio-annexes':'ספר-שמע-ונספחים.zip',
-          'everything':'כל-הפלטים.zip', 'sources':'הכול-כולל-קבצי-מקור.zip'}
+ASSETS = {'pdf':'open-music-theory-hebrew.pdf', 'pdf-annexes':'book-and-annexes.zip',
+          'audio':'audiobook.zip', 'audio-annexes':'audiobook-and-annexes.zip',
+          'everything':'all-outputs.zip', 'sources':'everything-with-sources.zip'}
 LABELS = [('pdf','PDF הספר','לקריאה ולהדפסה'),('pdf-annexes','PDF עם נספחים','הספר והמדיה המצורפת'),
           ('audio','ספר שמע','פרקי MP3 שלמים ותמלילים'),('audio-annexes','ספר שמע עם נספחים','הקלטות וחומרי העזר'),
           ('everything','כל הפלטים','PDF, שמע ונספחים — ללא קבצי מקור'),('sources','הכול כולל קבצי מקור','גם תוכן המקור, תיעוד ומקטעי שמע')]
@@ -23,7 +23,7 @@ CSS = '''
 JS = r'''
 const repo='openmusictools/open-music-theory-hebrew';
 const prefix=document.body.dataset.prefix||'';
-const slots={"pdf":"תאוריית-המוזיקה-הפתוחה.pdf","pdf-annexes":"ספר-ונספחים.zip","audio":"ספר-שמע.zip","audio-annexes":"ספר-שמע-ונספחים.zip","everything":"כל-הפלטים.zip","sources":"הכול-כולל-קבצי-מקור.zip"};
+const slots={"pdf":"open-music-theory-hebrew.pdf","pdf-annexes":"book-and-annexes.zip","audio":"audiobook.zip","audio-annexes":"audiobook-and-annexes.zip","everything":"all-outputs.zip","sources":"everything-with-sources.zip"};
 function useRelease(r){if(!r||!Array.isArray(r.assets))return;let found=0;for(const [key,name] of Object.entries(slots)){const a=r.assets.find(a=>a.name===name);if(a){document.querySelectorAll('[data-download="'+key+'"]').forEach(el=>{el.href=a.browser_download_url;el.querySelector('.size')?.replaceChildren(document.createTextNode((a.size/1048576).toFixed(1)+' MB'));});found++;}}if(found){document.querySelectorAll('[data-release]').forEach(el=>el.textContent=(r.name||r.tag_name)+' · '+new Date(r.published_at).toLocaleDateString('he-IL'));document.querySelectorAll('[data-release-link]').forEach(el=>el.href=r.html_url);}}
 fetch(prefix+'release.json').then(r=>r.ok?r.json():null).then(useRelease).catch(()=>{});
 // Include beta releases: /latest deliberately excludes prereleases.
@@ -57,7 +57,11 @@ def build_site(source,out,release_file):
     files=[source/p for p in subprocess.check_output(['git','ls-files','-z'],cwd=source).decode().split('\0') if p]
     docs=[p for p in files if p.suffix=='.md']
     docset={p.resolve() for p in docs}
-    titles={p.resolve():str(meta(p)[0].get('title') or p.stem) for p in docs}
+    titles={}
+    for p in docs:
+        m,b=meta(p)
+        heading=BeautifulSoup(markdown.markdown(b),'html.parser').find('h1')
+        titles[p.resolve()]=str(m.get('title') or (heading.get_text() if heading else p.stem))
     toc_soup=BeautifulSoup(markdown.markdown(meta(source/'contents.md')[1],extensions=['tables']),'html.parser')
     groups={};order=[];group='המהדורה העברית'
     for node in toc_soup.find_all(['h2','a']):
@@ -97,6 +101,7 @@ def build_site(source,out,release_file):
             attr='href' if t.name=='a' else 'src' if t.name in {'img','audio','source'} else None
             if not attr or not t.get(attr):continue
             u=html.unescape(t[attr]);parts=urlsplit(u)
+            if u.rstrip('/') in {'https://openmusictheory.github.io','https://openmusictheory.com','http://openmusictheory.com'}:continue
             if u.startswith('#'):continue
             for base in ('https://openmusictheory.github.io/','http://openmusictheory.com/','https://openmusictheory.com/','https://open-music-theory-he.github.io/open-music-theory-hebrew/'):
                 if u.startswith(base):u='/'+u[len(base):];parts=urlsplit(u);break
@@ -212,7 +217,7 @@ def release_packages(source,out,tag):
             for n,t in common.items():z.writestr(n,t)
         with zipfile.ZipFile(out/ASSETS[key]) as z:
             if z.testzip():raise RuntimeError('ZIP corruption')
-    pdfmap={ASSETS['pdf']:pdf}
+    pdfmap={'תאוריית-המוזיקה-הפתוחה.pdf':pdf}
     archive('pdf-annexes',{**pdfmap,**companions})
     archive('audio',audiofiles)
     archive('audio-annexes',{**audiofiles,**companions})
@@ -223,8 +228,9 @@ def release_packages(source,out,tag):
         if p:allfiles['קבצי-מקור/'+p]=source/p
     for p in state.rglob('*'):
         if p.is_file() and p.name not in {'.git','.gitignore','concat.txt','working.wav','working.mp3'} and not p.name.endswith('.tmp'):allfiles['תיעוד-ומקטעי-שמע/'+p.relative_to(state).as_posix()]=p
-    for p in Path(__file__).parent.rglob('*'):
-        if p.is_file() and '.git' not in p.parts and p.suffix in {'.py','.md','.yml'}:allfiles['קוד-אתר/'+p.relative_to(Path(__file__).parent).as_posix()]=p
+    for name in ('publish.py','README.md','.github/workflows/publish.yml'):
+        p=Path(__file__).parent/name
+        if p.is_file():allfiles['קוד-אתר/'+name]=p
     archive('sources',allfiles)
     manifest={'tag':tag,'source_commit':m['commit'],'audio_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=state,text=True).strip(),'complete_audio_chapters':len(completed),'eligible_audio_chapters':len(report['chapters']),'synthesis_requests':0,'assets':[]}
     for key,name in ASSETS.items():manifest['assets'].append({'kind':key,'name':name,'bytes':(out/name).stat().st_size,'sha256':hashlib.sha256((out/name).read_bytes()).hexdigest()})
