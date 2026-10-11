@@ -13,7 +13,7 @@ ASSETS = {'pdf':'open-music-theory-hebrew.pdf', 'pdf-annexes':'book-and-annexes.
           'everything':'all-outputs.zip', 'sources':'everything-with-sources.zip'}
 LABELS = [('pdf','PDF הספר','לקריאה ולהדפסה'),('pdf-annexes','PDF עם נספחים','הספר והמדיה המצורפת'),
           ('audio','ספר שמע','פרקי MP3 שלמים ותמלילים'),('audio-annexes','ספר שמע עם נספחים','הקלטות וחומרי העזר'),
-          ('everything','כל הפלטים','PDF, שמע ונספחים — ללא קבצי מקור'),('sources','הכול כולל קבצי מקור','גם תוכן המקור, תיעוד ומקטעי שמע')]
+          ('everything','כל הקבצים (לא כולל קבצי מקור)','PDF, שמע ונספחים — ללא קבצי מקור'),('sources','הכול כולל קבצי מקור','גם תוכן המקור, תיעוד ומקטעי שמע')]
 MEDIA = {'.png','.jpg','.jpeg','.svg','.gif','.webp','.pdf','.mp3','.wav','.ogg','.m4a','.mp4','.webm'}
 CSS = '''
 :root{--paper:#f8f6ef;--ink:#202c2a;--muted:#64726b;--line:#d9dfd4;--accent:#21684f;--card:#fffefa;--gold:#e9bb66;--serif:Georgia,"Times New Roman",serif;font-family:Arial,"Noto Sans Hebrew",sans-serif;color-scheme:light}
@@ -51,7 +51,7 @@ def relative(depth,path):return '../'*depth+path
 
 def page(title,body,depth=0):
     pre='../'*depth
-    return f'''<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} | תאוריית המוזיקה הפתוחה</title><meta name="description" content="ספר תאוריית מוזיקה פתוח בעברית: קריאה בפרקים, מילון מונחים, PDF וספר שמע."><link rel="icon" href="{pre}art/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="{pre}style.css"><script defer src="{pre}app.js"></script></head><body data-prefix="{pre}"><a class="skip" href="#main">דלג לתוכן</a><header><div class="wrap header-inner"><a class="brand" href="{pre}index.html">תאוריית המוזיקה הפתוחה<small>OPEN MUSIC THEORY · המהדורה העברית</small></a><nav class="nav" aria-label="ניווט ראשי"><a href="{pre}contents.html">הספר</a><a href="{pre}index.html#downloads">הורדות</a><a class="source-nav" href="{pre}docs/translation-policy-and-glossary.html">מילון ומדיניות</a><span class="beta">בטא</span></nav></div></header>{body}<footer class="footer"><div class="wrap footer-inner"><div>מהדורה עברית עצמאית בסיוע AI · ביקורת מקצועית אנושית טרם הושלמה.<br>מקור: Kris Shaffer, Bryn Hughes, Brian Moseley; עריכה: Kris Shaffer ו־Robin Wharton; Hybrid Pedagogy Publishing.<br>טקסט הספר: <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY–SA 4.0</a>; נכסי המקור לפי הרישיון המצוין בהם. איורי האתר המופשטים: CC0.</div><div><a href="https://openmusictheory.github.io/">המקור באנגלית</a> · <a href="https://github.com/{SOURCE_REPO}">מאגר התרגום</a><br><a href="https://github.com/{REPO}/issues/new">דיווח על טעות</a> · <a data-release-link href="https://github.com/{REPO}/releases">כל המהדורות</a></div></div></footer></body></html>'''
+    return f'''<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)} | תאוריית המוזיקה הפתוחה</title><meta name="description" content="ספר תאוריית מוזיקה פתוח בעברית: קריאה בפרקים, מילון מונחים, PDF וספר שמע."><link rel="icon" href="{pre}art/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="{pre}style.css"><script defer src="{pre}app.js"></script></head><body data-prefix="{pre}"><a class="skip" href="#main">דלג לתוכן</a><header><div class="wrap header-inner"><a class="brand" href="{pre}index.html">תאוריית המוזיקה הפתוחה<small>OPEN MUSIC THEORY · המהדורה העברית</small></a><nav class="nav" aria-label="ניווט ראשי"><a href="{pre}contents.html">הספר</a><a href="{pre}index.html#downloads">הורדות</a><a class="source-nav" href="{pre}docs/translation-policy-and-glossary.html">מילון ומדיניות</a><span class="beta">בטא</span></nav></div></header>{body}<footer class="footer"><div class="wrap footer-inner"><div>מהדורה עברית עצמאית בסיוע AI · ביקורת מקצועית אנושית טרם הושלמה.<br>מקור: Kris Shaffer, Bryn Hughes, Brian Moseley; עריכה: Kris Shaffer ו־Robin Wharton; Hybrid Pedagogy Publishing.<br>טקסט הספר: <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY–SA 4.0</a>; נכסי המקור לפי הרישיון המצוין בהם. איורי האתר המופשטים: CC0.</div><div><a class="button secondary tools-home-button" href="https://openmusictools.github.io/">דף הבית של כלי מוזיקה פתוחים</a><br><a href="https://openmusictheory.github.io/">המקור באנגלית</a> · <a href="https://github.com/{SOURCE_REPO}">מאגר התרגום</a><br><a href="https://github.com/{REPO}/issues/new">דיווח על טעות</a> · <a data-release-link href="https://github.com/{REPO}/releases">כל המהדורות</a></div></div></footer></body></html>'''
 
 def build_site(source,out,release_file):
     files=[source/p for p in subprocess.check_output(['git','ls-files','-z'],cwd=source).decode().split('\0') if p]
@@ -174,6 +174,7 @@ def build_site(source,out,release_file):
     write(out/'art/icon.svg','<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#21684f"/><path d="M8 32 Q20 7 32 32 T56 32" stroke="#efd09a" stroke-width="5" fill="none"/></svg>')
     write(out/'art/LICENSE.txt','Original abstract SVG artwork by contributors to the Hebrew edition. Dedicated to the public domain under CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/\n')
     write(out/'build-report.json',json.dumps({'chapters':len(order),'pages':len(docs),'known_missing_resources':missing,'legacy_fragment_fallbacks':fallbacks},ensure_ascii=False,indent=2))
+    optimize_search(out)
     # Validate every local href/src and all retained internal fragments.
     problems=[]
     for p in out.rglob('*.html'):
@@ -188,6 +189,49 @@ def build_site(source,out,release_file):
             elif parts.fragment and dest.suffix=='.html' and not BeautifulSoup(dest.read_text(),'html.parser').find(id=parts.fragment):problems.append(str(p)+': missing fragment '+u)
     if problems:raise RuntimeError('\n'.join(problems))
     print('Site validated:',len(docs),'pages;',len(order),'content chapters')
+
+
+def optimize_search(out):
+    """Static per-page metadata and canonical sitemap; no content rewriting."""
+    base = 'https://openmusictools.github.io/open-music-theory-hebrew/'
+    urls = []
+    for file in sorted(out.rglob('*.html')):
+        soup = BeautifulSoup(file.read_text(), 'html.parser')
+        if not soup.head:
+            continue
+        path = file.relative_to(out).as_posix()
+        url = base + ('' if path == 'index.html' else quote(path, safe='/'))
+        if path == '404.html':
+            soup.head.append(soup.new_tag('meta', attrs={'name':'robots','content':'noindex'}))
+        else:
+            urls.append(url)
+        title = soup.title.get_text()
+        prose = soup.select_one('.prose')
+        paragraphs = prose.find_all('p') if prose else []
+        summary = next((node.get_text(' ', strip=True) for node in paragraphs if len(node.get_text()) > 45), '')
+        if summary:
+            description = title.split(' | ')[0] + ': ' + re.sub(r'\s+', ' ', summary)[:170]
+        elif path == 'index.html':
+            description = 'ספר תאוריית המוזיקה הפתוחה בעברית: יסודות, הרמוניה, קונטרפונקט וניתוח מוזיקלי. קריאה חופשית, PDF, נספחים וספר שמע חלקי. מהדורת בטא בסיוע AI.'
+        else:
+            description = title.split(' | ')[0] + ' — קריאה במהדורה העברית של תאוריית המוזיקה הפתוחה, עם דוגמאות ותיעוד התרגום.'
+        soup.head.find('meta', attrs={'name':'description'})['content'] = description
+        canon = soup.new_tag('link', rel='canonical', href=url); soup.head.append(canon)
+        for key, value in [('og:title',title), ('og:description',description), ('og:url',url), ('og:type','website'), ('og:locale','he_IL')]:
+            soup.head.append(soup.new_tag('meta', attrs={'property':key,'content':value}))
+        # JSON-LD describes the actual page; no invented reviews or endorsements.
+        schema = {'@context':'https://schema.org','@type':'WebPage','name':title,'url':url,'inLanguage':'he','description':description,
+                  'isPartOf':{'@type':'WebSite','name':'תאוריית המוזיקה הפתוחה בעברית','url':base}}
+        structured = soup.new_tag('script', type='application/ld+json')
+        structured.string = json.dumps(schema, ensure_ascii=False).replace('<', '\u003c')
+        soup.head.append(structured)
+        # Keep the generated body exactly intact; only replace the head.
+        original = file.read_text()
+        a = original.index('<head>'); b = original.index('</head>') + len('</head>')
+        write(file, original[:a]+str(soup.head)+original[b:])
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+    xml += ''.join('<url><loc>'+html.escape(url)+'</loc></url>' for url in urls) + '</urlset>\n'
+    write(out/'sitemap.xml', xml)
 
 def release_packages(source,out,tag):
     out.mkdir(parents=True,exist_ok=True)
