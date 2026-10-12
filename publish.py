@@ -156,7 +156,7 @@ def build_site(source,out,release_file):
                 if 0<=j<len(order):chapter_nav+=f'<a href="{pre}{paths[order[j]]}"><small>{label}</small>{html.escape(titles[order[j]])}</a>'
         group=next((name for name,items in groups.items() if p in items),'תיעוד המהדורה')
         body=f'<main id="main" class="wrap reader">{sidebar}<article class="chapter"><div class="chapter-head"><span class="eyebrow">{html.escape(group)}</span><h1>{html.escape(titles[p])}</h1><div class="chapter-tools"><span>מהדורה עברית · בטא</span><button data-size="1" aria-label="הגדלת גודל הכתב">א+</button><button data-size="-1" aria-label="הקטנת גודל הכתב">א−</button><button data-theme>בהיר / כהה</button></div></div><div class="search-block"><label for="chapter-search">חיפוש בספר</label><input id="chapter-search" class="search" data-search placeholder="מושג, פרק או ביטוי…" autocomplete="off"><div class="search-results" aria-live="polite"></div></div><div class="prose">{soup}</div><div class="chapter-nav">{chapter_nav}</div><p class="source-line"><a href="https://github.com/{SOURCE_REPO}/blob/master/{quote(p.relative_to(source).as_posix())}">תוכן הפרק במאגר התרגום</a> · <a href="https://github.com/{REPO}/issues/new?title={quote(titles[p])}">דיווח על טעות בפרק</a></p></article></main>'
-        if p.name=='contents.md':body=f'<main id="main" class="wrap section"><div class="section-title"><h1>תוכן העניינים</h1><p>126 עמודי תוכן · המהדורה העברית</p></div><div class="prose full-toc">{soup}</div></main>'
+        if p.name=='contents.md':body=f'<main id="main" class="wrap section"><div class="section-title"><h1>תוכן העניינים</h1><p>125 עמודי תוכן · המהדורה העברית</p></div><div class="prose full-toc">{soup}</div></main>'
         write(out/paths[p],page(titles[p],body,depth))
         search.append({'title':titles[p],'text':soup.get_text(' ',strip=True),'path':paths[p],'group':group})
     for p in files:
@@ -309,3 +309,4 @@ if __name__=='__main__':
     source=args.source.resolve()
     if args.mode=='site':build_site(source,(args.output or Path('_site')).resolve(),args.release)
     else:release_packages(source,(args.output or Path('release-assets')).resolve(),args.tag)
+
