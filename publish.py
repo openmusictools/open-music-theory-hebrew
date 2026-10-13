@@ -269,7 +269,8 @@ def release_packages(source,out,tag):
     audiofiles={}
     for p in audio.rglob('*'):
         if p.is_file() and p.suffix!='.zip':audiofiles['ספר-שמע/'+p.relative_to(audio).as_posix()]=p
-    common={'קראו-אותי.txt':f'תאוריית המוזיקה הפתוחה — מהדורה עברית {tag}\nמקור: Open Music Theory v1, CC BY-SA 4.0. קרדיטים ורישיונות פרטניים נשמרים בחומרי המקור.\nתרגום בסיוע AI, טרם הושלמה הגהה מקצועית עצמאית. תמונות ונספחים נשמרים גם בשפת המקור.\nספר השמע חלקי: {len(completed)}/{len(report["chapters"])} פרקים שלמים. אין הפקת שמע בריצת הפרסום.\nאתר הקריאה: https://openmusictools.github.io/open-music-theory-hebrew/\nמאגר התרגום: https://github.com/{SOURCE_REPO}\nחבילות הפלט מכילות PDF, מדיה, נספחים ותמלילי שמע; אינן כוללות קוד, Markdown, תווי מקור או גיבויי עבודה.\n'}
+    audio_status = 'ספר השמע הושלם.' if len(completed)==len(report['chapters']) and len(completed)>=125 else AUDIO_IN_PROGRESS
+    common={'קראו-אותי.txt':f'תאוריית המוזיקה הפתוחה — מהדורה עברית {tag}\nמקור: Open Music Theory v1, CC BY-SA 4.0. קרדיטים ורישיונות פרטניים נשמרים בחומרי המקור.\nתרגום בסיוע AI, טרם הושלמה הגהה מקצועית עצמאית. תמונות ונספחים נשמרים גם בשפת המקור.\n{audio_status} {len(completed)}/{len(report["chapters"])} פרקים שלמים. אין הפקת שמע בריצת הפרסום.\nאתר הקריאה: https://openmusictools.github.io/open-music-theory-hebrew/\nמאגר התרגום: https://github.com/{SOURCE_REPO}\nחבילות הפלט מכילות PDF, מדיה, נספחים ותמלילי שמע; אינן כוללות קוד, Markdown, תווי מקור או גיבויי עבודה.\n'}
     external='\n'.join(m['external_references'])+'\n'
     def archive(key,mapping):
         with zipfile.ZipFile(out/ASSETS[key],'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
@@ -297,11 +298,11 @@ def release_packages(source,out,tag):
     manifest={'tag':tag,'source_commit':m['commit'],'audio_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=state,text=True).strip(),'complete_audio_chapters':len(completed),'eligible_audio_chapters':len(report['chapters']),'synthesis_requests':0,'assets':[]}
     for key,name in ASSETS.items():manifest['assets'].append({'kind':key,'name':name,'bytes':(out/name).stat().st_size,'sha256':hashlib.sha256((out/name).read_bytes()).hexdigest()})
     write(out/'release-manifest.json',json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
-    notes=f'''מהדורת בטא ראשונה של תאוריית המוזיקה הפתוחה בעברית, המבוססת על Open Music Theory גרסה 1.
+    notes=f'''מהדורת בטא של תאוריית המוזיקה הפתוחה בעברית, המבוססת על Open Music Theory גרסה 1.
 
-כל 124 עמודי התוכן והעזר המקוריים תורגמו ונבדקו בסיוע AI; נוספו שני פרקי פתיחה בעברית. הגהה מקצועית אנושית טרם הושלמה. כיתובים בתמונות וחלק מהנספחים נותרו באנגלית; דוגמאות מקוונות נשמרות כקישורים. איור אחד חסר במאגר המקור ומתועד בדוחות.
+כל 124 עמודי התוכן והעזר המקוריים תורגמו ונבדקו בסיוע AI; נוספו שני פרקי פתיחה בעברית. הגהה מקצועית אנושית טרם הושלמה. כיתובים בתמונות וחלק מהנספחים נותרו באנגלית; דוגמאות מקוונות נשמרות כקישורים. האיור החסר בפרק פעולות בשורות שנים־עשר טונים הוחלף בתרשים מאומת, עם הערת מהדורה.
 
-ספר השמע נמצא בתהליך הקלטה, ולא כל הפרקים זמינים.\n\nספר השמע: **{len(completed)} מתוך {len(report['chapters'])} פרקים שלמים**. בריצה זו נעשה שימוש בהקלטות קיימות בלבד, ללא יצירה מחדש וללא שימוש במכסת Google.
+{audio_status}\n\nספר השמע: **{len(completed)} מתוך {len(report['chapters'])} פרקים שלמים**. בריצה זו נעשה שימוש בהקלטות קיימות בלבד, ללא יצירה מחדש וללא שימוש במכסת Google.
 
 | קובץ | תוכן |
 |---|---|
