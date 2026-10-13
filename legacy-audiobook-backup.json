@@ -1,0 +1,11 @@
+{
+  "branch": "audiobook-data",
+  "commit": "e9763dcee69f6f28f9705d61a9655a443bd410f8",
+  "repository": "open-music-theory-he/open-music-theory-hebrew",
+  "release": "https://github.com/openmusictools/open-music-theory-hebrew/releases/tag/v0.1.0-beta.6",
+  "audio_zip": "https://github.com/openmusictools/open-music-theory-hebrew/releases/download/v0.1.0-beta.6/audiobook.zip",
+  "audio_zip_sha256": "e051ef596abc7b32a02ae99dc2b9931753e59cdaf1d414a51b9d54a37c4ad8a8",
+  "voice": "Charon",
+  "complete_chapters": 16,
+  "retention": "Keep the legacy branch and published releases unchanged. Publication snapshots audiobook-v2-data only."
+}

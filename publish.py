@@ -255,7 +255,7 @@ def release_packages(source,out,tag):
     out.mkdir(parents=True,exist_ok=True)
     exp=source/'dist/export';audio=source/'dist/audiobook';state=source/'dist/audiobook-state'
     report=json.loads((audio/'progress.json').read_text())
-    if report['requests_this_run']!=0 or report['status']!='tags_updated':raise RuntimeError('Export must reuse existing audio')
+    if report['requests_this_run']!=0 or report['status']!='saved_audio_exported' or report.get('voice')!='Iapetus':raise RuntimeError('Export must reuse verified Iapetus v2 audio')
     completed=[c for c in report['chapters'] if c['status']=='generated']
     for c in completed:
         if hashlib.sha256((audio/'chapters'/c['filename']).read_bytes()).hexdigest()!=c['sha256']:raise RuntimeError('Audio checksum mismatch')
@@ -298,18 +298,18 @@ def release_packages(source,out,tag):
         if p:allfiles['קבצי-מקור/'+p]=source/p
     for p in state.rglob('*'):
         if p.is_file() and p.name not in {'.git','.gitignore','concat.txt','working.wav','working.mp3'} and not p.name.endswith('.tmp'):allfiles['תיעוד-ומקטעי-שמע/'+p.relative_to(state).as_posix()]=p
-    for name in ('publish.py','README.md','.github/workflows/publish.yml'):
+    for name in ('publish.py','export_saved_audio_v2.py','legacy-audiobook-backup.json','README.md','.github/workflows/publish.yml'):
         p=Path(__file__).parent/name
         if p.is_file():allfiles['קוד-אתר/'+name]=p
     archive('sources',allfiles)
-    manifest={'tag':tag,'source_commit':m['commit'],'audio_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=state,text=True).strip(),'complete_audio_chapters':len(completed),'eligible_audio_chapters':len(report['chapters']),'synthesis_requests':0,'assets':[]}
+    manifest={'tag':tag,'source_commit':m['commit'],'audio_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=state,text=True).strip(),'complete_audio_chapters':len(completed),'eligible_audio_chapters':len(report['chapters']),'synthesis_requests':0,'audio_edition':report['edition'],'audio_voice':report['voice'],'legacy_audio_backup':json.loads((Path(__file__).parent/'legacy-audiobook-backup.json').read_text()),'assets':[]}
     for key,name in ASSETS.items():manifest['assets'].append({'kind':key,'name':name,'bytes':(out/name).stat().st_size,'sha256':hashlib.sha256((out/name).read_bytes()).hexdigest()})
     write(out/'release-manifest.json',json.dumps(manifest,ensure_ascii=False,indent=2)+'\n')
     notes=f'''מהדורת בטא של תאוריית המוזיקה הפתוחה בעברית, המבוססת על Open Music Theory גרסה 1.
 
 כל 124 עמודי התוכן והעזר המקוריים תורגמו ונבדקו בסיוע AI; נוספו שני פרקי פתיחה בעברית. הגהה מקצועית אנושית טרם הושלמה. כיתובים בתמונות וחלק מהנספחים נותרו באנגלית; דוגמאות מקוונות נשמרות כקישורים. האיור החסר בפרק פעולות בשורות שנים־עשר טונים הוחלף בתרשים מאומת, עם הערת מהדורה.
 
-{audio_status}\n\nספר השמע: **{len(completed)} מתוך {len(report['chapters'])} פרקים שלמים**. בריצה זו נעשה שימוש בהקלטות קיימות בלבד, ללא יצירה מחדש וללא שימוש במכסת Google.
+{audio_status}\n\nמהדורת השמע החדשה: קול **{report["voice"]}**, מהדורה 2. ההקלטות הישנות נשמרות בענף `audiobook-data` ובמהדורות הקודמות.\n\nספר השמע: **{len(completed)} מתוך {len(report['chapters'])} פרקים שלמים**. בריצה זו נעשה שימוש בהקלטות קיימות בלבד, ללא יצירה מחדש וללא שימוש במכסת Google.
 
 | קובץ | תוכן |
 |---|---|
@@ -330,5 +330,6 @@ if __name__=='__main__':
     source=args.source.resolve()
     if args.mode=='site':build_site(source,(args.output or Path('_site')).resolve(),args.release)
     else:release_packages(source,(args.output or Path('release-assets')).resolve(),args.tag)
+
 
 
