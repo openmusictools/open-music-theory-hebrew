@@ -80,11 +80,11 @@ jobs:
       - name: Snapshot saved audio without changing its branch
         if: env.RELEASE_TAG != ''
         run: |
-          git -C source fetch origin audiobook-data
+          git -C source fetch origin audiobook-v2-data
           git -C source worktree add --detach dist/audiobook-state FETCH_HEAD
-      - name: Export existing narration without synthesis
+      - name: Export verified v2 narration without synthesis
         if: env.RELEASE_TAG != ''
-        run: python source/scripts/export_audiobook.py --tags-only
+        run: python export_saved_audio_v2.py --source source --state source/dist/audiobook-state --output source/dist/audiobook
       - name: Build and validate six download packages
         if: env.RELEASE_TAG != ''
         run: python publish.py packages --source source --tag "$RELEASE_TAG"
@@ -153,3 +153,4 @@ jobs:
                   m=json.loads(Path('release-assets/release-manifest.json').read_text())
                   f.write(f'Release: {m["tag"]}; six downloads; {m["complete_audio_chapters"]}/{m["eligible_audio_chapters"]} completed audio chapters; synthesis requests: 0.\n')
           PY
+
