@@ -12,7 +12,7 @@ ASSETS = {'pdf':'open-music-theory-hebrew.pdf', 'pdf-annexes':'book-and-annexes.
           'audio':'audiobook.zip', 'audio-annexes':'audiobook-and-annexes.zip',
           'everything':'all-outputs.zip', 'sources':'everything-with-sources.zip'}
 LABELS = [('pdf','PDF הספר','לקריאה ולהדפסה'),('pdf-annexes','PDF עם נספחים','הספר והמדיה המצורפת'),
-          ('audio','ספר שמע','פרקים שהושלמו ותמליליהם'),('audio-annexes','ספר שמע עם נספחים','הפרקים הזמינים וחומרי העזר'),
+          ('audio','ספר שמע','פרקי MP3 שהושלמו'),('audio-annexes','ספר שמע עם נספחים','הפרקים הזמינים וחומרי העזר'),
           ('everything','כל הקבצים (לא כולל קבצי מקור)','PDF, שמע ונספחים — ללא קבצי מקור'),('sources','הכול כולל קבצי מקור','גם תוכן המקור, תיעוד ומקטעי שמע')]
 MEDIA = {'.png','.jpg','.jpeg','.svg','.gif','.webp','.pdf','.mp3','.wav','.ogg','.m4a','.mp4','.webm'}
 CSS = '''
@@ -264,29 +264,36 @@ def release_packages(source,out,tag):
     companions={}
     for f in m['files']:
         p=source/f['path']
-        if p.suffix.lower() in MEDIA:companions['נספחים/'+f['hebrew_filename']]=p
+        if f['path'] in m['reader_media'] and p.suffix.lower() in MEDIA:companions['נספחים/'+f['hebrew_filename']]=p
     companions['נספחים/external-media-links.txt']=None
     audiofiles={}
     for p in audio.rglob('*'):
-        if p.is_file() and p.suffix!='.zip':audiofiles['ספר-שמע/'+p.relative_to(audio).as_posix()]=p
+        if p.is_file() and p.suffix.lower()=='.mp3' and p.parent==audio/'chapters':audiofiles['ספר-שמע/'+p.name]=p
     audio_status = 'ספר השמע הושלם.' if len(completed)==len(report['chapters']) and len(completed)>=125 else AUDIO_IN_PROGRESS
-    common={'קראו-אותי.txt':f'תאוריית המוזיקה הפתוחה — מהדורה עברית {tag}\nמקור: Open Music Theory v1, CC BY-SA 4.0. קרדיטים ורישיונות פרטניים נשמרים בחומרי המקור.\nתרגום בסיוע AI, טרם הושלמה הגהה מקצועית עצמאית. תמונות ונספחים נשמרים גם בשפת המקור.\n{audio_status} {len(completed)}/{len(report["chapters"])} פרקים שלמים. אין הפקת שמע בריצת הפרסום.\nאתר הקריאה: https://openmusictools.github.io/open-music-theory-hebrew/\nמאגר התרגום: https://github.com/{SOURCE_REPO}\nחבילות הפלט מכילות PDF, מדיה, נספחים ותמלילי שמע; אינן כוללות קוד, Markdown, תווי מקור או גיבויי עבודה.\n'}
+    common={'קראו-אותי.txt':f'תאוריית המוזיקה הפתוחה — מהדורה עברית {tag}\nמקור: Open Music Theory v1, CC BY-SA 4.0. קרדיטים ורישיונות פרטניים נשמרים בחומרי המקור.\nתרגום בסיוע AI, טרם הושלמה הגהה מקצועית עצמאית. תמונות ונספחים נשמרים גם בשפת המקור.\n{audio_status} {len(completed)}/{len(report["chapters"])} פרקים שלמים. אין הפקת שמע בריצת הפרסום.\nאתר הקריאה: https://openmusictools.github.io/open-music-theory-hebrew/\nמאגר התרגום: https://github.com/{SOURCE_REPO}\nחבילות הפלט מכילות PDF, מדיה ונספחים; התמלילים ותיעוד ההפקה זמינים בחבילת המקור; אינן כוללות קוד, Markdown, תווי מקור או גיבויי עבודה.\n'}
     external='\n'.join(m['external_references'])+'\n'
-    def archive(key,mapping):
+    def archive(key,mapping,include_readme=True):
         with zipfile.ZipFile(out/ASSETS[key],'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
             for name,p in sorted(mapping.items()):
                 if p is not None:z.write(p,name)
                 else:z.writestr(name,external)
-            for n,t in common.items():z.writestr(n,t)
+            if include_readme:
+                for n,t in common.items():z.writestr(n,t)
         with zipfile.ZipFile(out/ASSETS[key]) as z:
             if z.testzip():raise RuntimeError('ZIP corruption')
     pdfmap={'תאוריית-המוזיקה-הפתוחה.pdf':pdf}
     archive('pdf-annexes',{**pdfmap,**companions})
-    archive('audio',audiofiles)
-    archive('audio-annexes',{**audiofiles,**companions})
+    archive('audio',audiofiles,include_readme=False)
+    archive('audio-annexes',{**audiofiles,**{n:p for n,p in companions.items() if p is not None}},include_readme=False)
+    with zipfile.ZipFile(out/ASSETS['audio']) as z:
+        if len(z.namelist())!=len(completed) or any(not n.endswith('.mp3') for n in z.namelist()):raise RuntimeError('Audio-only package contains unexpected files')
+    with zipfile.ZipFile(out/ASSETS['audio-annexes']) as z:
+        if any(n.endswith(('.txt','.json')) for n in z.namelist()):raise RuntimeError('Audio annex package contains production documentation')
     outputs={**pdfmap,**audiofiles,**companions}
     archive('everything',outputs)
     allfiles=dict(outputs)
+    for p in audio.rglob('*'):
+        if p.is_file() and p.suffix!='.zip':allfiles['תמלילים-ותיעוד/'+p.relative_to(audio).as_posix()]=p
     for p in subprocess.check_output(['git','ls-files','-z'],cwd=source).decode().split('\0'):
         if p:allfiles['קבצי-מקור/'+p]=source/p
     for p in state.rglob('*'):
@@ -307,7 +314,7 @@ def release_packages(source,out,tag):
 | קובץ | תוכן |
 |---|---|
 '''+''.join(f'| {ASSETS[k]} | {label} — {desc} |\n' for k,label,desc in LABELS)+f'''
-ה־PDF הוא היצוא הסטטי המלא: כולל המסמכים המשולבים בעקבות הפרקים ותיעוד המהדורה. חבילות הנספחים מוסיפות את קובצי המדיה והמסמכים בנפרד. חבילת הפלטים אינה כוללת קבצי עריכה וקוד; חבילת המקור כוללת גם אותם ואת כל מצב השמע השמור.
+ה־PDF הוא מהדורה לקורא: פרקי לימוד, מילון ונספחים מוזיקליים עם הפניות. דוחות ביקורת ומדריכי תוכנה היסטוריים זמינים בחבילת המקור. חבילות הנספחים מוסיפות את קובצי המדיה והמסמכים בנפרד. חבילת הפלטים אינה כוללת קבצי עריכה וקוד; חבילת המקור כוללת גם אותם ואת כל מצב השמע השמור.
 
 מקור הטקסט: `{m['commit']}`. מקור השמע: `{manifest['audio_commit']}`. חתימות SHA256 וגודל כל הורדה: release-manifest.json.
 
