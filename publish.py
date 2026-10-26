@@ -39,6 +39,9 @@ document.querySelectorAll('[data-size]').forEach(b=>b.addEventListener('click',(
 document.querySelector('[data-sidebar]')?.addEventListener('click',e=>{const side=document.querySelector('.sidebar');side.classList.toggle('open');e.currentTarget.setAttribute('aria-expanded',String(side.classList.contains('open')));});
 '''
 
+# Keep runtime download links synchronized with the server-side release assets.
+JS = re.sub(r'const slots=\{[^\n]+\};', 'const slots='+json.dumps(ASSETS)+';', JS, count=1)
+
 def meta(p):
     text=p.read_text(encoding='utf-8')
     if text.startswith('---\n'):
@@ -199,7 +202,8 @@ def build_site(source,out,release_file):
     for p in files:
         if p.suffix.lower() in MEDIA:
             dest=out/p.relative_to(source);dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(p,dest)
-    cards=''.join(f'<a class="download-card" data-download="{key}" href="https://github.com/{REPO}/releases"><span class="format">{"PDF" if key=="pdf" else "ZIP"} <span class="size"></span></span><strong>{label} ↙</strong><small>{desc}{" — בתהליך הקלטה; לא כל הפרקים זמינים" if key in {"audio","audio-annexes","everything","sources"} and not AUDIO_COMPLETE else ""}</small></a>' for key,label,desc in LABELS)
+    download_urls={a['name']:a['browser_download_url'] for a in release_status.get('assets',[])}
+    cards=''.join(f'<a class="download-card" data-download="{key}" href="{html.escape(download_urls.get(ASSETS[key],f'https://github.com/{REPO}/releases'),quote=True)}"><span class="format">{"PDF" if key=="pdf" else "ZIP"} <span class="size"></span></span><strong>{label} ↙</strong><small>{desc}{" — בתהליך הקלטה; לא כל הפרקים זמינים" if key in {"audio","audio-annexes","everything","sources"} and not AUDIO_COMPLETE else ""}</small></a>' for key,label,desc in LABELS)
     topics=''
     for name,items in groups.items():
         topics+=f'<div class="topic"><h3>{html.escape(name)}</h3>'+''.join(f'<a href="{paths[p]}">{html.escape(titles[p])}</a>' for p in items[:4])+f'<a class="more" href="contents.html">לכל הפרקים · {len(items)} ←</a></div>'
