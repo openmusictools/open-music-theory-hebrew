@@ -78,6 +78,7 @@ jobs:
         if: env.RELEASE_TAG != ''
         run: python source/scripts/export_book.py
       - name: Export phone-sized PDF and PNG chapter downloads
+        if: env.RELEASE_TAG != ''
         run: python mobile_images.py --source source --work dist/mobile-work --site dist/mobile-site --assets release-assets
       - name: Snapshot saved audio without changing its branch
         if: env.RELEASE_TAG != ''
@@ -132,6 +133,9 @@ jobs:
           latest=next((r for r in releases if not r['draft'] and all(n in {a['name'] for a in r['assets']} for n in ASSETS.values())),{})
           Path('release.json').write_text(json.dumps(latest,ensure_ascii=False))
           PY
+      - name: Restore the exact published mobile reader
+        if: env.RELEASE_TAG == ''
+        run: python restore_mobile.py --release release.json
       - name: Build and validate the Hebrew reading website
         run: python publish.py site --source source --release release.json
       - name: Configure GitHub Pages
