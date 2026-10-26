@@ -25,7 +25,7 @@ def main():
     exporter=importlib.util.module_from_spec(spec);spec.loader.exec_module(exporter)
     exporter.CSS+='''
 @page {size:100mm 178mm; margin:6mm 6mm 9mm; @bottom-center {font-size:8pt}}
-body {font-size:11pt;line-height:1.5} h1 {font-size:19pt} h2 {font-size:16pt} h3 {font-size:13pt}
+body {font-family:"DejaVu Sans",sans-serif;font-size:11pt;line-height:1.5} h1 {font-size:19pt} h2 {font-size:16pt} h3 {font-size:13pt}
 img {max-width:100%; max-height:145mm} table {font-size:8pt} table.wide {font-size:7pt}
 th,td {padding:2pt} .cover {padding-top:6mm} .path {font-size:7pt}
 '''
@@ -83,6 +83,9 @@ th,td {padding:2pt} .cover {padding-top:6mm} .path {font-size:7pt}
         z.writestr('README.txt','תאוריית המוזיקה הפתוחה — תמונות PNG לסלולרי.\nקראו לפי המספור בתיקיית pages.\nפריסה צרה דרך PDF; נספחים מקוריים נשמרו בשלמותם.\nטקסט CC BY-SA 4.0; לכל נכס רישיונו וייחוסו במקור.\nhttps://openmusictools.github.io/open-music-theory-hebrew/\nבדיקת תצוגה מדגמית בלבד, לא של כל תמונה.\n')
     with zipfile.ZipFile(fullzip) as z:assert z.testzip() is None
     shutil.copyfile(pdf,args.assets/'book-mobile.pdf')
+    with zipfile.ZipFile(args.assets/'book-mobile-site.zip','w',zipfile.ZIP_STORED) as z:
+        for p in sorted(args.site.rglob('*')):
+            if p.is_file():z.write(p,p.relative_to(args.site))
     print(json.dumps({'pages':pages,'chapter_packages':len(segments),'sample_pages':sample_numbers,'zip_bytes':fullzip.stat().st_size,'sha256':digest(fullzip)}),flush=True)
 
 if __name__=='__main__':main()
